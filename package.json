@@ -1,0 +1,22 @@
+{
+  "name": "Torre dos Dados",
+  "version": "1.0.0",
+  "description": "Bota para o servidor RPG Portugal no Discord",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"TODO\" && exit 1"
+  },
+  "keywords": [
+    "discord"
+  ],
+  "author": "Ricardo Tavares",
+  "license": "ISC",
+  "dependencies": {
+    "@discordjs/uws": "^11.149.1",
+    "better-sqlite3": "^5.4.3",
+    "cron": "^1.7.2",
+    "discord.js": "^11.5.1",
+    "erlpack": "github:hammerandchisel/erlpack",
+    "moment": "^2.24.0"
+  }
+}
