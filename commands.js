@@ -137,6 +137,10 @@ module.exports = function(dependencies){
             }
         }
     };
+    // aliases
+    commands.numeroate = commands['númeroaté'];
+    commands.until=commands.numeroate;
+    
     commands.items['4df'] = function(command_args, member, channel){ 
         return ` **${tools.random(3, -1) + tools.random(3, -1) + tools.random(3, -1) + tools.random(3, -1)}**`; 
     };
