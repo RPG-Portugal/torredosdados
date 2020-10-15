@@ -137,9 +137,6 @@ module.exports = function(dependencies){
             }
         }
     };
-    // command aliases
-    commands.items.numerosate = commands.items['númerosaté'];
-    commands.items.until = commands.items.numerosate;
     
     commands.items['4df'] = function(command_args, member, channel){ 
         return ` **${tools.random(3, -1) + tools.random(3, -1) + tools.random(3, -1) + tools.random(3, -1)}**`; 
@@ -182,5 +179,10 @@ module.exports = function(dependencies){
         });
         commands.items['d' + n] = commands.items['1d' + n];
     });
+    
+     // command aliases
+    commands.items.numeroate = commands.items['númeroaté'];
+    commands.items.until = commands.items.numeroate;
+
     return commands;
 };
