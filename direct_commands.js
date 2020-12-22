@@ -1,5 +1,5 @@
 module.exports = function(dependencies){
-    const {model, tools, moment, client, db, keep} = dependencies;
+    const {model, tools, moment, client, db, keep, request, log_channel} = dependencies;
     const direct_commands = {
         throttle: {},
         valid: function(message){
@@ -52,6 +52,22 @@ module.exports = function(dependencies){
                 let text = model.help_text + model.extra_help_text;
                 return text;
             },
+            test: function(command_args, member, channel){ // used to test new features
+                log_channel.webhook('testing webhook: hello world');
+                return 'ran test function';
+            },
+            ping: function(command_args, member, channel){ // used to check the connection to local services
+                var object = {
+                    user_id: member.id, displayName: member.displayName,
+                    joinedTimestamp: moment(member.joinedTimestamp).format('YYYY-MM-DD HH:mm:ss'), displayAvatarURL: member.user.displayAvatarURL,
+                };
+                var url = command_args.length == 1 ? command_args[0] : model.php_service_url;
+                request.post(url, { json: object }, (error, res, body) => {
+                    if(error){ console.error(error); return false; }
+                    channel.send(JSON.stringify(body))
+                });
+                return true;
+            },
             concordia: function(command_args, member, channel){ 
                 var token = tools.randomTokenFromID(member.id); 
                 var identification = {
@@ -62,15 +78,13 @@ module.exports = function(dependencies){
                     token: token
                 };
                 let identified = db.prepare(`
-                SELECT user_id, timestamp FROM member WHERE user_id=:user_id AND token IS NOT NULL
-                AND timestamp=(SELECT MAX(timestamp) FROM member WHERE user_id=:user_id)
+                SELECT user_id, last_change FROM member WHERE user_id=:user_id 
                 `).get({user_id:member.id});
                 if(identified){
-                    identification.timestamp = identified.timestamp;
                     let update_sql = `
-                    UPDATE member SET timestamp=STRFTIME('%Y-%m-%d %H:%M:%S','now'), 
+                    UPDATE member SET last_change=STRFTIME('%Y-%m-%d %H:%M:%S','now'), 
                     displayName=:displayName, joinedTimestamp=:joinedTimestamp, displayAvatarURL=:displayAvatarURL, token=:token 
-                    WHERE user_id=:user_id AND timestamp=:timestamp
+                    WHERE user_id=:user_id 
                     `;
                     db.prepare(update_sql).run(identification);
                 }else{

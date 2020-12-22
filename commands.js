@@ -96,6 +96,11 @@ module.exports = function(dependencies){
             ajuda: function(command_args, member, channel){ return model.help_text; },
             procura: function(command_args, member, channel){ return 'https://pt.wikipedia.org/wiki/' + tools.safeURLParam(command_args.join(' ')); },
             search: function(command_args, member, channel){ return 'https://en.wikipedia.org/wiki/' + tools.safeURLParam(command_args.join(' ')); },
+            dicas: function(command_args, member, channel){ 
+                let url = 'https://rpgportugal.com/dicas/' + tools.safeURLParam(command_args.join('')); 
+                url += '?t=' + moment().format('YYYYMMDDHHmmss');
+                return url;
+            },
             copia: function(command_args, member, channel){
                 if(command_args.length < 2){ return 'Necessito de um canal e do identificador da mensagem.'; }
                 let channel_id = command_args[0].replace('<#', '').replace('>', ''); 
@@ -116,7 +121,7 @@ module.exports = function(dependencies){
                 return 'https://rpgportugal.com/' + tools.safeURLParam(command_args[0].toLowerCase());
             },
             nível: function(command_args, member, channel){
-                let found = db.prepare('SELECT SUM(level) AS level FROM "member" WHERE user_id=:user_id').get({user_id: member.id});
+                let found = db.prepare('SELECT SUM(level) AS level FROM member_levels WHERE user_id=:user_id').get({user_id: member.id});
                 if(!found){ return 'Lamento, ainda não estás no servidor à tempo suficiente para ter calculado o teu nível.'; }
                 if(found.level == 0 || !found.level){ found.level = 1; }
                 return `Neste momento calculo que estás a nível **${found.level}** :muscle:`;
@@ -134,10 +139,12 @@ module.exports = function(dependencies){
             },
             avatar: function(command_args, member, channel){
                 return `${member.user.displayAvatarURL}\n${member.displayName}`;
+            },
+            canais: function(){
+                return behaviors.listAvailableChannels(true);//pass true to return the text instead of behaving as normal
             }
         }
     };
-    
     commands.items['4df'] = function(command_args, member, channel){ 
         return ` **${tools.random(3, -1) + tools.random(3, -1) + tools.random(3, -1) + tools.random(3, -1)}**`; 
     };
@@ -147,7 +154,7 @@ module.exports = function(dependencies){
         dice_pools.map(size=>{ 
             commands.items[size + 'd' + n] = function(command_args, member, channel){ 
                 let modifier = false;
-                if(command_args.length > 0){
+                if(command_args.length > 0 && command_args[0].length > 1){
                     if(command_args[0].indexOf('+') == 0){
                         modifier = parseInt(command_args[0].replace('+', ''));
                         if(modifier === NaN || command_args[0].indexOf('d') > -1){ modifier = false; }//parseInt of 1d4 is still 1
@@ -179,8 +186,8 @@ module.exports = function(dependencies){
         });
         commands.items['d' + n] = commands.items['1d' + n];
     });
-    
-     // command aliases
+
+   // command aliases
     commands.items.numeroate = commands.items['númeroaté'];
     commands.items.until = commands.items.numeroate;
 

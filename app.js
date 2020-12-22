@@ -38,10 +38,10 @@ model.countMembers =()=>{
         if(is_green){ return true; }
         let has_golden_role = (member.roles.array().filter(role => role.id == model.golden_role_id).length == 1);
         if(has_golden_role){ return false; }
-        if(!added_missing_golden_role && member.roles.array().length > 0){//TODO maybe a better validation
+        if(!added_missing_golden_role && member.roles.array().length > 1){//TODO maybe a better validation
             member.addRole(model.golden_role_id);
             added_missing_golden_role = true;
-            log_channel.message(`Dei Douradinho em falta ao ${member}`);
+            log_channel.message(`Dei Douradinho em falta ao ${member.displayName}`);
         }
         return false;
     }); 
@@ -97,9 +97,7 @@ const behaviors = {
         setTimeout(function(text){//sometimes the message appears before the member actually enters the server
             client.channels.get(model.new_members.channel_id).send(text);
         }.bind(this, text), 5000);
-        let update_sql = `
-        UPDATE member SET last_removed=NULL WHERE user_id=:user_id AND timestamp=(SELECT MAX(timestamp) FROM member WHERE user_id=:user_id)
-        `;
+        let update_sql = `UPDATE member SET last_removed=NULL WHERE user_id=:user_id`;
         db.prepare(update_sql).run({user_id:member.id});
     },
     checkInvites: function(member){//invite information is logged to help detect duplicate users or ban evasion (Discord support is currently flooded)
@@ -138,8 +136,10 @@ const behaviors = {
         setTimeout(function(){ model.new_members.raid_count = 0; }, model.new_members.raid_timeout);
     },
     sayGoodbye: function(member){
-        let text = `Penso que ${member} acaba de sair do servidor :wave:`;
-        client.channels.get(model.new_members.channel_id).send(text);
+        if(!member.displayName){ return false; }
+        let text = `Penso que ${member.displayName} acaba de sair do servidor :wave:`;
+        log_channel.message(text);
+        //client.channels.get(model.new_members.channel_id).send(text);
         keep.member_removed(member);
     },
     briefChannels: function(){
@@ -176,7 +176,7 @@ const behaviors = {
             }else if(message.author.presence.status == 'online'){//still online
                 setTimeout(behaviors.reactToAuthorExit.bind(this, message, true), 30000);
             }else{
-                let text = `Parece-me que ${message.author} passou de estar online para ${message.author.presence.status}. Até à próxima :wave:`;
+                let text = `Parece-me que ${message.author.username} passou de estar online para ${message.author.presence.status}. Até à próxima :wave:`;
                 client.channels.get(model.new_members.channel_id).send(text);
             }
         }
@@ -184,7 +184,7 @@ const behaviors = {
     kickOldestIdleNewMember: function(){
         let idle_member = db.prepare(`
         SELECT user_id, joinedTimestamp, displayName FROM new_member 
-        WHERE joinedTimestamp<DATE('now', '-3 month') AND lastMessageID IS NULL AND presence='offline' LIMIT 1
+        WHERE joinedTimestamp<DATE('now', '-7 day') AND presence='offline' LIMIT 1
         `).get({});
         if(!idle_member){ return false; }
         var guild = client.guilds.get(model.guild_id);
@@ -217,6 +217,16 @@ const behaviors = {
                 db.prepare(update_sql).run(update);
             }).catch(console.log);
         }).catch(console.log);
+    },
+    listAvailableChannels: function(return_text){
+        let text = Object.keys(model.channels).reduce(function(text, key){
+            const channel = client.channels.get(model.channels[key]);
+            text += "`!quero " + key + "` para o canal " + channel + "\n"; 
+            return text;
+        }, "No servidor temos canais específicos a vários RPGs.\nPodes obter acesso aos que te interessarem com o comando `!quero`:\n");
+        text += '(se quiseres acesso a todos e mais alguns, pede o role Todos os RPGs aos administradores)';
+        if(return_text){ return text; }
+        client.channels.get("651372855161913354").send(text);//#roleplaying-games
     }
 }
 
@@ -293,14 +303,12 @@ const keep = {
     member_removed: function(member){
         const identification = { user_id: member.id };
         let update_sql = `
-        UPDATE member SET token=NULL, identifier=NULL, last_removed=STRFTIME('%Y-%m-%d %H:%M:%S','now') 
-        WHERE user_id=:user_id AND token IS NOT NULL AND timestamp=(SELECT MAX(timestamp) FROM member WHERE user_id=:user_id)
+        UPDATE member SET token=NULL, identifier=NULL, last_removed=STRFTIME('%Y-%m-%d %H:%M:%S','now'), last_change=STRFTIME('%Y-%m-%d %H:%M:%S','now') 
+        WHERE user_id=:user_id 
         `;
         db.prepare(update_sql).run(identification);
     }
 }
-
-const direct_commands = require('./direct_commands.js')({model:model, tools:tools, moment:moment, client:client, db:db, keep:keep});
 
 const log_channel = {
     countMembers: function(data){
@@ -328,8 +336,20 @@ const log_channel = {
         let text = `${data.name} está em baixo.`;
         log_channel.message(text);
     },
-    message: function(text){ client.channels.get(model.log.channel_id).send(text); }
+    message: function(text){ client.channels.get(model.log.channel_id).send(text); },
+    webhook: async function(text){
+        const channel = client.channels.get(model.log.channel_id);
+        try{
+            const webhooks = await channel.fetchWebhooks();
+            const webhook = webhooks.first();
+            await webhook.send(text, {});
+        }catch(error){ console.error('Webhook error: ', error); }
+    }
 };
+
+const direct_commands = require('./direct_commands.js')(
+    {model:model, tools:tools, moment:moment, client:client, db:db, keep:keep, request:request, log_channel:log_channel}
+);
 
 save.on('countMembers', data=>{
     log_channel.countMembers(data);
@@ -346,9 +366,10 @@ save.on('message_posted', message=>{
 });
 
 client.on('ready', () => {
-    let message = `${moment().format('YYYY-MM-DD hh:mm:ss')}: ${client.user.tag} obteu ligação (x${model.data.ready_count})`;
+    let message = `Iniciei processo e obtive ligação (x${model.data.ready_count})`;
     model.data.ready_count ++;
-    console.log(message);
+    model.data.reconnecting_count = 0;
+    console.log(moment().format('YYYY-MM-DD hh:mm:ss') + ' ' + message);
     log_channel.message(message);
 });
 client.on('message', message => {
@@ -376,11 +397,23 @@ client.on('guildMemberRemove', member => {
     behaviors.sayGoodbye(member);
 });
 client.on('error', error => {
-	 console.error('The websocket connection encountered an error:', error);
+	 console.error('The websocket connection encountered an error: ', error);
 });
+client.on('warn', error => { console.log('Client warning: ', error); });
+//client.on('debug', error => { console.log('DEBUG: ', error); });
 client.on('reconnecting', function(){
-    let message = `${moment().format('YYYY-MM-DD hh:mm:ss')}: client trying to reconnect`;
-    console.log(message);
+    model.data.reconnecting_count ++;
+    //if(model.data.reconnecting_count % 100 != 0){ return false; }
+    //log_channel.webhook(`...a tentar obter ligação perdida (${model.data.reconnecting_count} reconexões até agora)`);
+    //let message = ` a tentar reconnectar`;
+    //console.log(moment().format('YYYY-MM-DD hh:mm:ss') + ' ' + message);
+});
+client.on('resume', function(){
+    model.data.ready_count ++;
+    //if(model.data.ready_count % 100 != 0){ return false; }
+    //let message = `Recuperei a ligação (x${model.data.ready_count - 1})`;
+    //console.log(moment().format('YYYY-MM-DD hh:mm:ss') + ' ' + message);
+    //log_channel.message(message);
 });
 process.on('unhandledRejection', error => {
 	console.error('Unhandled promise rejection:', error);
@@ -400,11 +433,15 @@ const job_every_6h = new CronJob('0 */6 * * *', function(){
 const job_every_day = new CronJob('2 12 * * *', function(){
     behaviors.kickOldestIdleNewMember();
 }, null, true, 'Europe/Lisbon');
+const job_every_lateafternoon = new CronJob('2 18 * * *', function(){
+    behaviors.kickOldestIdleNewMember();
+}, null, true, 'Europe/Lisbon');
 const job_every_night = new CronJob('0 3 * * *', function(){
     behaviors.rotateInviteCode();
 }, null, true, 'Europe/Lisbon');
 const job_every_wednesday = new CronJob('0 4 * * 3', function(){
     behaviors.briefChannels();
+    setTimeout(behaviors.listAvailableChannels, 60000);
 }, null, true, 'Europe/Lisbon');
 const job_every_sunday = new CronJob('0 10 * * 0', function(){
     model.countRoles();
