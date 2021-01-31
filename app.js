@@ -318,7 +318,7 @@ const log_channel = {
         return text;
     },
     countRoles: function(data){
-        let relevant_data = data.roles.filter(function(role){ return (role.members_count > 6); });
+        let relevant_data = data.roles.filter(function(role){ return (role.members_count > 10); });
         const requestable_roles = Object.keys(model.roles).reduce(function(requestable_roles, item){
             requestable_roles[model.roles[item]] = item; 
             return requestable_roles;
@@ -327,7 +327,7 @@ const log_channel = {
             text += `@ ${role.name}: ${role.members_count}`;
             if(requestable_roles[role.id]){ text += " `!quero " + requestable_roles[role.id] + "`"; }
             return text + "\n";
-        }, `**Membros dentro de cada role com mais de 6 pessoas:**\n`);
+        }, `**Membros dentro de cada role com mais de 10 pessoas:**\n`);
         //log_channel.message(text);
         client.channels.get(model.new_members.channel_id).send(text);
         return text;
