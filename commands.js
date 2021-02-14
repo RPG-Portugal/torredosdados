@@ -25,7 +25,7 @@ module.exports = function(dependencies){
         run: function(message){
             let valid = commands.valid(message);
             if(!valid){ return false; }
-            const member = client.guilds.get(model.guild_id).members.get(message.author.id);
+            const member = client.guilds.cache.get(model.guild_id).members.cache.get(message.author.id);
             if(!member){ return false; }
             if(member.roles.array().filter(role => role.id == model.new_members.role_id).length == 1){
                 message.channel.send(model.new_members.you_need_gold);
@@ -58,16 +58,16 @@ module.exports = function(dependencies){
                 let invalid_roles = [];
                 let valid_roles = [];
                 requested_ids.map(function(requested_id){
-                    const role = client.guilds.get(model.guild_id).roles.get(requested_id);
+                    const role = client.guilds.cache.get(model.guild_id).roles.cache.get(requested_id);
                     if(role){ valid_roles.push(role); }else{ invalid_roles.push(role); }
                 });
                 if(invalid_roles.length > 0){ return `O role ${invalid_roles[0].name} já não se encontra no servidor :sweat_smile:`; }
                 let valid_ids = valid_roles.map(valid_role=>valid_role.id);
                 if(valid_ids.length == 0){ return 'Os roles disponíveis precisam de ser reconfigurados antes de os poder atribuir :sweat_smile:'; }
-                let repeated_ids = valid_ids.filter(valid_id=>member.roles.get(valid_id) != undefined);
+                let repeated_ids = valid_ids.filter(valid_id=>member.roles.cache.get(valid_id) != undefined);
                 if(repeated_ids.length == 1 && requested_keys.length == 1){ return `Penso que já tens ${requested_keys[0]} :sweat_smile:`; }
                 if(repeated_ids.length > 0){ return `Penso que já tens pelo menos alguns destes roles :sweat_smile:`; }
-                member.addRoles(valid_ids);
+                member.roles.add(valid_ids);
                 let answer = ` recebeste ${tools.commasAnd(valid_roles.map(valid_role=>valid_role.name))} :+1: ` ;
                 answer += '*(podes retirar items com o comando !retira)*';
                 return answer;
@@ -85,7 +85,7 @@ module.exports = function(dependencies){
                 let valid_ids = command_args.filter(key=>removable_values.indexOf(model.roles[key])>-1).map(valid_key=>model.roles[valid_key]);
                 if(valid_ids.length == 0){ return `Estes são os items que te posso retirar: ${removable_keys.join(', ')}.`; }
                 let answer = ' retirei-te ' + tools.commasAnd(valid_ids.map(valid_id=>current_roles.filter(role=>role.id==valid_id)[0].name))+ ' :wave:' ;
-                member.removeRoles(valid_ids);
+                member.roles.remove(valid_ids);
                 return answer;
             },
             invites: function(command_args, member, channel){ return behaviors.checkInvites(); },
@@ -104,8 +104,8 @@ module.exports = function(dependencies){
             copia: function(command_args, member, channel){
                 if(command_args.length < 2){ return 'Necessito de um canal e do identificador da mensagem.'; }
                 let channel_id = command_args[0].replace('<#', '').replace('>', ''); 
-                const source_channel = client.guilds.get(model.guild_id).channels.get(channel_id);
-                source_channel.fetchMessages({around: command_args[1], limit: 1}).then(messages=>{
+                const source_channel = client.guilds.cache.get(model.guild_id).channels.cache.get(channel_id);
+                source_channel.messages.fetch({around: command_args[1], limit: 1}).then(messages=>{
                     let message = messages.first();
                     if(!message){ var reply = 'Não encontrei essa mensagem.'; }
                     else{
@@ -138,7 +138,7 @@ module.exports = function(dependencies){
                 return tools.genesys.roll(client, command_args[0]);
             },
             avatar: function(command_args, member, channel){
-                return `${member.user.displayAvatarURL}\n${member.displayName}`;
+                return `${member.user.displayAvatarURL()}\n${member.displayName}`;
             },
             canais: function(){
                 return behaviors.listAvailableChannels(true);//pass true to return the text instead of behaving as normal

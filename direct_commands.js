@@ -24,7 +24,7 @@ module.exports = function(dependencies){
             setTimeout(function(){
                 delete(direct_commands.throttle[message.author.id]);
             }, 5000);
-            const member = client.guilds.get(model.guild_id).members.get(message.author.id);
+            const member = client.guilds.cache.get(model.guild_id).members.cache.get(message.author.id);
             if(!member){ return false; }
             if(member.roles.array().filter(role => role.id == model.new_members.role_id).length == 1){
                 message.channel.send(model.new_members.you_need_gold);
@@ -59,7 +59,7 @@ module.exports = function(dependencies){
             ping: function(command_args, member, channel){ // used to check the connection to local services
                 var object = {
                     user_id: member.id, displayName: member.displayName,
-                    joinedTimestamp: moment(member.joinedTimestamp).format('YYYY-MM-DD HH:mm:ss'), displayAvatarURL: member.user.displayAvatarURL,
+                    joinedTimestamp: moment(member.joinedTimestamp).format('YYYY-MM-DD HH:mm:ss'), displayAvatarURL: member.user.displayAvatarURL(),
                 };
                 var url = command_args.length == 1 ? command_args[0] : model.php_service_url;
                 request.post(url, { json: object }, (error, res, body) => {
@@ -74,7 +74,7 @@ module.exports = function(dependencies){
                     user_id: member.id,
                     displayName: member.displayName,
                     joinedTimestamp: moment(member.joinedTimestamp).format('YYYY-MM-DD HH:mm:ss'),
-                    displayAvatarURL: member.user.displayAvatarURL,
+                    displayAvatarURL: member.user.displayAvatarURL(),
                     token: token
                 };
                 let identified = db.prepare(`

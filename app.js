@@ -17,7 +17,7 @@ process.on('SIGTERM', () => process.exit(128 + 15));
 console.log('>>> starting process');
 
 model.countMembers =()=>{
-    let guild = client.guilds.get(model.guild_id);
+    let guild = client.guilds.cache.get(model.guild_id);
     model.data.available = guild.available;
     if(!model.data.available){ 
         save.emit('downDiscord', model.data);
@@ -39,7 +39,7 @@ model.countMembers =()=>{
         let has_golden_role = (member.roles.array().filter(role => role.id == model.golden_role_id).length == 1);
         if(has_golden_role){ return false; }
         if(!added_missing_golden_role && member.roles.array().length > 1){//TODO maybe a better validation
-            member.addRole(model.golden_role_id);
+            member.roles.add(model.golden_role_id);
             added_missing_golden_role = true;
             log_channel.message(`Dei Douradinho em falta ao ${member.displayName}`);
         }
@@ -88,14 +88,14 @@ const behaviors = {
             {username: member.username, user_id: member.id}
         );
         if(watched){ 
-            client.channels.get(model.new_members.channel_id).send(`Olá ${member}. Algo me diz que já te conheço...`);
+            client.channels.cache.get(model.new_members.channel_id).send(`Olá ${member}. Algo me diz que já te conheço...`);
             return false; 
         }
-        member.addRole(model.new_members.role_id);
-        let rules_channel = client.channels.get(model.new_members.rules_channel_id);
+        member.roles.add(model.new_members.role_id);
+        let rules_channel = client.channels.cache.get(model.new_members.rules_channel_id);
         let text = `Olá ${member} :wave: ${model.new_members.greeting}`;
         setTimeout(function(text){//sometimes the message appears before the member actually enters the server
-            client.channels.get(model.new_members.channel_id).send(text);
+            client.channels.cache.get(model.new_members.channel_id).send(text);
         }.bind(this, text), 5000);
         let update_sql = `UPDATE member SET last_removed=NULL WHERE user_id=:user_id`;
         db.prepare(update_sql).run({user_id:member.id});
@@ -139,19 +139,19 @@ const behaviors = {
         if(!member.displayName){ return false; }
         let text = `Penso que ${member.displayName} acaba de sair do servidor :wave:`;
         log_channel.message(text);
-        //client.channels.get(model.new_members.channel_id).send(text);
+        //client.channels.cache.get(model.new_members.channel_id).send(text);
         keep.member_removed(member);
     },
     briefChannels: function(){
-        var guild = client.guilds.get(model.guild_id);
+        var guild = client.guilds.cache.get(model.guild_id);
         var relevant_channels = db.prepare(`
         SELECT DISTINCT channel_id FROM message WHERE createdTimestamp>DATE('now', '-1 day') AND channel_id IN (${model.briefable_channels.join(',')})
         `).all();
         relevant_channels.map(function(m){
-            var channel = guild.channels.get(m.channel_id.toString()); 
+            var channel = guild.channels.cache.get(m.channel_id.toString()); 
             if(!channel){ return false; }
             var text = `:clipboard: **${channel}** *${channel.topic}*`;
-            channel.fetchPinnedMessages().then(function(pins){
+            channel.messages.fetchPinned().then(function(pins){
                 if(pins.size > 0){ var friendly_date = moment(channel.lastPinAt).format('D [de] MMMM [de] YYYY'); }
                 switch(pins.size){
                     case 0: text = text + `\n:pushpin: Este canal ainda não tem mensagens afixadas.`; break;
@@ -170,14 +170,14 @@ const behaviors = {
             if(message.author.presence.status != 'online'){ return false; }
             setTimeout(behaviors.reactToAuthorExit.bind(this, message, true), 30000);
         }else{
-            let guild = client.guilds.get(model.guild_id);
+            let guild = client.guilds.cache.get(model.guild_id);
             if(!guild.member(message.author.id)){ // not found in server
                 return false;
             }else if(message.author.presence.status == 'online'){//still online
                 setTimeout(behaviors.reactToAuthorExit.bind(this, message, true), 30000);
             }else{
                 let text = `Parece-me que ${message.author.username} passou de estar online para ${message.author.presence.status}. Até à próxima :wave:`;
-                client.channels.get(model.new_members.channel_id).send(text);
+                client.channels.cache.get(model.new_members.channel_id).send(text);
             }
         }
     },
@@ -187,7 +187,7 @@ const behaviors = {
         WHERE joinedTimestamp<DATE('now', '-7 day') AND presence='offline' LIMIT 1
         `).get({});
         if(!idle_member){ return false; }
-        var guild = client.guilds.get(model.guild_id);
+        var guild = client.guilds.cache.get(model.guild_id);
         let member = guild.member(idle_member.user_id.toString()) 
         if(!member || member.lastMessageID || member.presence.status !='offline'){ return false; }
         let kick_reason = 'Retirado(a) do servidor por inactividade. Procura interagir com a comunidade quando voltares ao RPG Portugal.';
@@ -198,9 +198,9 @@ const behaviors = {
         keep.member_removed(member);
     },
     rotateInviteCode: function(){
-        const rules_channel = client.channels.get(model.new_members.rules_channel_id);
+        const rules_channel = client.channels.cache.get(model.new_members.rules_channel_id);
         const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
-        rules_channel.fetchInvites().then(function(invites_collection){
+        rules_channel.invites.fetch().then(function(invites_collection){
             let invites = invites_collection.array();
             invites.map(function(invite){//should be only one
                 invite.delete('replacing this with a new invite as of ' + timestamp);
@@ -220,13 +220,13 @@ const behaviors = {
     },
     listAvailableChannels: function(return_text){
         let text = Object.keys(model.channels).reduce(function(text, key){
-            const channel = client.channels.get(model.channels[key]);
+            const channel = client.channels.cache.get(model.channels[key]);
             text += "`!quero " + key + "` para o canal " + channel + "\n"; 
             return text;
         }, "No servidor temos canais específicos a vários RPGs.\nPodes obter acesso aos que te interessarem com o comando `!quero`:\n");
         text += '(se quiseres acesso a todos e mais alguns, pede o role Todos os RPGs aos administradores)';
         if(return_text){ return text; }
-        client.channels.get("651372855161913354").send(text);//#roleplaying-games
+        client.channels.cache.get("651372855161913354").send(text);//#roleplaying-games
     }
 }
 
@@ -318,7 +318,7 @@ const log_channel = {
         return text;
     },
     countRoles: function(data){
-        let relevant_data = data.roles.filter(function(role){ return (role.members_count > 6); });
+        let relevant_data = data.roles.filter(function(role){ return (role.members_count > 10); });
         const requestable_roles = Object.keys(model.roles).reduce(function(requestable_roles, item){
             requestable_roles[model.roles[item]] = item; 
             return requestable_roles;
@@ -327,20 +327,20 @@ const log_channel = {
             text += `@ ${role.name}: ${role.members_count}`;
             if(requestable_roles[role.id]){ text += " `!quero " + requestable_roles[role.id] + "`"; }
             return text + "\n";
-        }, `**Membros dentro de cada role com mais de 6 pessoas:**\n`);
+        }, `**Membros dentro de cada role com mais de 10 pessoas:**\n`);
         //log_channel.message(text);
-        client.channels.get(model.new_members.channel_id).send(text);
+        client.channels.cache.get(model.new_members.channel_id).send(text);
         return text;
     },
     downDiscord: function(data){
         let text = `${data.name} está em baixo.`;
         log_channel.message(text);
     },
-    message: function(text){ client.channels.get(model.log.channel_id).send(text); },
+    message: function(text){ client.channels.cache.get(model.log.channel_id).send(text); },
     webhook: async function(text){
-        const channel = client.channels.get(model.log.channel_id);
+        const channel = client.channels.cache.get(model.log.channel_id);
         try{
-            const webhooks = await channel.fetchWebhooks();
+            const webhooks = await channel.webhooks.fetch();
             const webhook = webhooks.first();
             await webhook.send(text, {});
         }catch(error){ console.error('Webhook error: ', error); }
@@ -401,14 +401,14 @@ client.on('error', error => {
 });
 client.on('warn', error => { console.log('Client warning: ', error); });
 //client.on('debug', error => { console.log('DEBUG: ', error); });
-client.on('reconnecting', function(){
+client.on('shardReconnecting', function(){
     model.data.reconnecting_count ++;
     //if(model.data.reconnecting_count % 100 != 0){ return false; }
     //log_channel.webhook(`...a tentar obter ligação perdida (${model.data.reconnecting_count} reconexões até agora)`);
     //let message = ` a tentar reconnectar`;
     //console.log(moment().format('YYYY-MM-DD hh:mm:ss') + ' ' + message);
 });
-client.on('resume', function(){
+client.on('shardResume', function(){
     model.data.ready_count ++;
     //if(model.data.ready_count % 100 != 0){ return false; }
     //let message = `Recuperei a ligação (x${model.data.ready_count - 1})`;

@@ -17,13 +17,13 @@ module.exports.greet = function(m){// receives a momentjs object
 	return g;
 };
 module.exports.userReacted = function(message, user_id, reaction_name){
-    const reaction_found = message.reactions.find(reaction=>reaction.emoji.name==reaction_name);
+    const reaction_found = message.reactions.cache.find(reaction=>reaction.emoji.name==reaction_name);
     if(!reaction_found){ return false; }
-    const user_found = reaction_found.users.find(user=>user.id==user_id);
+    const user_found = reaction_found.users.cache.find(user=>user.id==user_id);
     return user_found;
 };
 function emoji(client, name){
-    const emoji_found = client.emojis.find(emoji => emoji.name == name);
+    const emoji_found = client.emojis.cache.find(emoji => emoji.name == name);
     if(!emoji_found){ return `:${name}:`; }
     return emoji_found;
 };
