@@ -14,3 +14,6 @@ A bota só faz sentido no único servidor para o qual ela foi criada, pelo que o
 
 ### Mas como é que faço um pull request (pedido de alteração)?
 Podes ver [aqui no repositório da Gazeta do RPG Portugal](https://github.com/RPG-Portugal/gazeta) como se faz, é igual para todos. Em caso de dúvida, contacta o dreamup#1404 no Discord.
+
+### Só sei HTML/CSS, posso ajudar de alguma maneira?
+Sim! O guia de utilização da bota está [aqui](https://github.com/RPG-Portugal/landingpagesrpgpt) e o respectivo repositório encontra-se [aqui](https://github.com/RPG-Portugal/landingpagesrpgpt).
