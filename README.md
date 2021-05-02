@@ -13,4 +13,4 @@ Se quiseres criar um novo comando para o servidor, podes ver como são estrutura
 A bota só faz sentido no único servidor para o qual ela foi criada, pelo que o seu desenvolvimento pode ser trabalhado participando no https://rpgportugal.com/, nomeadamente no canal #oficina-dos-givHackers. Obrigado pelo teu interesse! 
 
 ### Mas como é que faço um pull request (pedido de alteração)?
-Podes ver [aqui no repositório da Gazeta do RPG Portugal](https://github.com/RPG-Portugal/gazeta) como se faz, é igual para todos.
+Podes ver [aqui no repositório da Gazeta do RPG Portugal](https://github.com/RPG-Portugal/gazeta) como se faz, é igual para todos. Em caso de dúvida, contacta o dreamup#1404 no Discord.
