@@ -25,7 +25,7 @@ module.exports.userReacted = function(message, user_id, reaction_name){
 function emoji(client, name){
     const emoji_found = client.emojis.cache.find(emoji => emoji.name == name);
     if(!emoji_found){ return `:${name}:`; }
-    return emoji_found;
+    return `${emoji_found}`;
 };
 module.exports.emoji = emoji;
 module.exports.safeURLParam = function(text){

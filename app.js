@@ -23,7 +23,7 @@ model.countMembers =()=>{
         save.emit('downDiscord', model.data);
         return false; 
     }
-    let valid_members = guild.members.array().filter( m => (!m.user.bot && m.roles.size > 0) );//not counting members without roles or bots
+    let valid_members = guild.members.cache.array().filter( m => (!m.user.bot && m.roles.cache.size > 0) );//don't count members with no role or bots
     model.data.memberCount = valid_members.length;
     if(valid_members.length > 0){
         model.data.onlineCount = valid_members.filter(m => m.presence.status != 'offline').length;
@@ -34,11 +34,11 @@ model.countMembers =()=>{
     }
     var added_missing_golden_role = false;
     let new_members = valid_members.filter(function(member, index){
-        let is_green = (member.roles.array().filter(role => role.id == model.new_members.role_id).length == 1);
+        let is_green = (member.roles.cache.array().filter(role => role.id == model.new_members.role_id).length == 1);
         if(is_green){ return true; }
-        let has_golden_role = (member.roles.array().filter(role => role.id == model.golden_role_id).length == 1);
+        let has_golden_role = (member.roles.cache.array().filter(role => role.id == model.golden_role_id).length == 1);
         if(has_golden_role){ return false; }
-        if(!added_missing_golden_role && member.roles.array().length > 1){//TODO maybe a better validation
+        if(!added_missing_golden_role && member.roles.cache.array().length > 1){//TODO maybe a better validation
             member.roles.add(model.golden_role_id);
             added_missing_golden_role = true;
             log_channel.message(`Dei Douradinho em falta ao ${member.displayName}`);
@@ -51,22 +51,22 @@ model.countMembers =()=>{
     return model.data;
 };
 model.countRoles =()=>{
-    let guild = client.guilds.get(model.guild_id);
+    let guild = client.guilds.cache.get(model.guild_id);
     model.data.available = guild.available;
     if(!model.data.available){ 
         save.emit('downDiscord', model.data);
         return false; 
     }
     let role_count = {};
-    let valid_members = guild.members.array().filter( m => (!m.user.bot && m.roles.size > 0) );//not counting members without roles or bots
+    let valid_members = guild.members.cache.array().filter( m => (!m.user.bot && m.roles.cache.size > 0) );
     valid_members.map(function(member){
-        member.roles.array().map(function(role){
+        member.roles.cache.array().map(function(role){
             if(!role_count[role.id]){ role_count[role.id] = 0; }
             role_count[role.id] ++;
         });
     });
     let roles = [];
-    guild.roles.array().map(function(role){
+    guild.roles.cache.array().map(function(role){
         if(!role_count[role.id] || role.id == guild.id){ return false; }//exclude @everyone role which has the same id as the guild
         if(role.id == model.golden_role_id || role.id == model.new_members.role_id){ return false; }
         roles.push({ id: role.id, name: role.name, members_count: role_count[role.id] });
@@ -188,19 +188,21 @@ const behaviors = {
         `).get({});
         if(!idle_member){ return false; }
         var guild = client.guilds.cache.get(model.guild_id);
-        let member = guild.member(idle_member.user_id.toString()) 
-        if(!member || member.lastMessageID || member.presence.status !='offline'){ return false; }
-        let kick_reason = 'Retirado(a) do servidor por inactividade. Procura interagir com a comunidade quando voltares ao RPG Portugal.';
-        let text = `
-        **${idle_member.displayName}** está no servidor desde ${idle_member.joinedTimestamp} sem dizer nada. Fiz-lhe kick com o texto: "${kick_reason}"`;
-        log_channel.message(text)
-        member.kick(kick_reason);
-        keep.member_removed(member);
+        guild.members.fetch(idle_member.user_id.toString()).then((member)=>{ 
+            if(!member || member.lastMessageID || member.presence.status !='offline'){ return false; }
+            let kick_reason = 'Retirado(a) do servidor por inactividade. Procura interagir com a comunidade quando voltares ao RPG Portugal.';
+            let text = `
+            **${idle_member.displayName}** está no servidor desde ${idle_member.joinedTimestamp} sem dizer nada.
+            Fiz-lhe kick com o texto: "${kick_reason}"`;
+            log_channel.message(text)
+            member.kick(kick_reason);
+            keep.member_removed(member);
+        }).catch(console.log);
     },
     rotateInviteCode: function(){
         const rules_channel = client.channels.cache.get(model.new_members.rules_channel_id);
         const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
-        rules_channel.invites.fetch().then(function(invites_collection){
+        rules_channel.fetchInvites().then(function(invites_collection){
             let invites = invites_collection.array();
             invites.map(function(invite){//should be only one
                 invite.delete('replacing this with a new invite as of ' + timestamp);
@@ -221,16 +223,35 @@ const behaviors = {
     listAvailableChannels: function(return_text){
         let text = Object.keys(model.channels).reduce(function(text, key){
             const channel = client.channels.cache.get(model.channels[key]);
-            text += "`!quero " + key + "` para o canal " + channel + "\n"; 
+            text += "`!quero " + key + "`" + ` para o canal ${channel}\n`; 
             return text;
         }, "No servidor temos canais específicos a vários RPGs.\nPodes obter acesso aos que te interessarem com o comando `!quero`:\n");
         text += '(se quiseres acesso a todos e mais alguns, pede o role Todos os RPGs aos administradores)';
         if(return_text){ return text; }
         client.channels.cache.get("651372855161913354").send(text);//#roleplaying-games
+    },
+    updateMemberInformation: function(){
+        let member = db.prepare(`
+        SELECT user_id FROM message WHERE user_id NOT IN (${Object.keys(model.data.error_members).join(',')}) 
+        AND ( user_id NOT IN (SELECT user_id FROM member) OR user_id IN (SELECT user_id FROM member WHERE last_change<date('now', '-30 day')) )
+        ORDER BY createdTimestamp DESC LIMIT 1
+        `).get({});
+        if(!member){ return false; }
+        keep.member(member.user_id.toString()); 
+    },
+    checkPayments: function(){
+        let payments = db.prepare("SELECT * FROM kofi_payment WHERE published IS NULL").all();
+        if(payments.length == 0){ return false; }
+        let texts = payments.reduce(function(texts, p){
+            texts.log = texts.log + `Pagamento de **${p.amount + ' ' + p.currency}** indicado pelo Ko-fi, feito por **${p.from_name}**, registado às **${p.hooked}** e identificado como **${p.identifier}**.\n`;
+            return texts;
+        }, {log: ''});
+        log_channel.message(texts.log);
+        db.prepare("UPDATE kofi_payment SET published=STRFTIME('%Y-%m-%d %H:%M:%S','now') WHERE published IS NULL").run(); 
+        return payments;
     }
 }
 
-const commands = require('./commands.js')({model:model, tools:tools, moment:moment, client:client, db:db, behaviors:behaviors});
 
 const keep = {
     message: function(message){
@@ -244,7 +265,7 @@ const keep = {
             user_id: message.author.id, 
             first_attachment: message.attachments.size>0 ? message.attachments.first().url : null, 
             first_embed: message.embeds.length>0 ? message.embeds[0].url : null, 
-            first_reaction_user_id: message.reactions.size>0 ? message.reactions.first().users.first().id : null, 
+            first_reaction_user_id: message.reactions.cache.size>0 ? message.reactions.cache.first().users.cache.first().id : null, 
             first_mention_user_id: message.mentions.users.size>0 ? message.mentions.users.first().id : null, 
             word_count: message.content.split(' ').length
         };
@@ -259,7 +280,7 @@ const keep = {
         if(!message || !message.id){ return false; }//maybe deleted
         let update = {
             id: message.id,
-            first_reaction_user_id: message.reactions.size>0 ? message.reactions.first().users.first().id : null, 
+            first_reaction_user_id: message.reactions.cache.size>0 ? message.reactions.cache.first().users.cache.first().id : null, 
             for_publication: tools.userReacted(message, model.user_id, '📣') ? 1 : 0
         };
         let update_sql = `UPDATE message SET first_reaction_user_id=:first_reaction_user_id, for_publication=:for_publication WHERE id=:id`;
@@ -300,6 +321,38 @@ const keep = {
             db.prepare(insert_sql).run(row);
         }
     },
+    member: function(user_id, callback){
+        function keepFetchedMember(member){
+            const identification = {
+                user_id: member.id,
+                displayName: member.displayName,
+                joinedTimestamp: moment(member.joinedTimestamp).format('YYYY-MM-DD HH:mm:ss'),
+                displayAvatarURL: member.user.displayAvatarURL()
+            };
+            let identified = db.prepare(`
+            SELECT user_id, last_change FROM member WHERE user_id=:user_id 
+            `).get({user_id:member.id});
+            if(identified){
+                let update_sql = `
+                UPDATE member SET last_change=STRFTIME('%Y-%m-%d %H:%M:%S','now'), 
+                displayName=:displayName, joinedTimestamp=:joinedTimestamp, displayAvatarURL=:displayAvatarURL
+                WHERE user_id=:user_id 
+                `;
+                db.prepare(update_sql).run(identification);
+            }else{
+                let insert_sql = `INSERT INTO member(${Object.keys(identification).join(', ')}) VALUES(:${Object.keys(identification).join(', :')})`;
+                db.prepare(insert_sql).run(identification);
+            }
+            if(callback){ callback(member); }
+        }
+        let guild = client.guilds.cache.get(model.guild_id);
+        if(!guild){ return false; }
+        guild.members.fetch(user_id)//fetches member even if online
+        .then(keepFetchedMember)
+        .catch(function(error){//may no longer be in the guild
+            if(!model.data.error_members[user_id]){ model.data.error_members[user_id] = error; }
+        });
+    },
     member_removed: function(member){
         const identification = { user_id: member.id };
         let update_sql = `
@@ -309,6 +362,8 @@ const keep = {
         db.prepare(update_sql).run(identification);
     }
 }
+
+const commands = require('./commands.js')({model:model, tools:tools, moment:moment, client:client, db:db, behaviors:behaviors, keep:keep});
 
 const log_channel = {
     countMembers: function(data){
@@ -422,8 +477,20 @@ process.on('unhandledRejection', error => {
 client.login(model.token);
 
 
+const job_every_1m = new CronJob('* * * * *', function(){
+    setTimeout(function(){
+        behaviors.updateMemberInformation();
+    }, 1000);
+}, null, true, 'Europe/Lisbon');
 const job_every_5m = new CronJob('*/5 * * * *', function(){
-    behaviors.checkInvites();
+    setTimeout(function(){
+        behaviors.checkInvites();
+    }, 1000);
+}, null, true, 'Europe/Lisbon');
+const job_every_10m = new CronJob('*/10 * * * *', function(){
+    setTimeout(function(){
+        behaviors.checkPayments();
+    }, 1000);
 }, null, true, 'Europe/Lisbon');
 const job_every_6h = new CronJob('0 */6 * * *', function(){
     model.countMembers();

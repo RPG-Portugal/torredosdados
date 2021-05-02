@@ -26,7 +26,7 @@ module.exports = function(dependencies){
             }, 5000);
             const member = client.guilds.cache.get(model.guild_id).members.cache.get(message.author.id);
             if(!member){ return false; }
-            if(member.roles.array().filter(role => role.id == model.new_members.role_id).length == 1){
+            if(member.roles.cache.array().filter(role => role.id == model.new_members.role_id).length == 1){
                 message.channel.send(model.new_members.you_need_gold);
                 return false;
             }

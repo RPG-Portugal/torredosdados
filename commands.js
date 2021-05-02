@@ -1,5 +1,5 @@
 module.exports = function(dependencies){
-    const {model, tools, moment, client, db, behaviors} = dependencies;
+    const {model, tools, moment, client, db, behaviors, keep} = dependencies;
     const commands = {
         valid: function(message){
             if(typeof message.content != 'string'){ return false; }
@@ -27,7 +27,7 @@ module.exports = function(dependencies){
             if(!valid){ return false; }
             const member = client.guilds.cache.get(model.guild_id).members.cache.get(message.author.id);
             if(!member){ return false; }
-            if(member.roles.array().filter(role => role.id == model.new_members.role_id).length == 1){
+            if(member.roles.cache.array().filter(role => role.id == model.new_members.role_id).length == 1){
                 message.channel.send(model.new_members.you_need_gold);
                 return false;
             }
@@ -75,7 +75,7 @@ module.exports = function(dependencies){
             retira: function(command_args, member, channel){ 
                 const values = Object.values(model.roles);
                 const keys = Object.keys(model.roles);
-                const current_roles = member.roles.array();
+                const current_roles = member.roles.cache.array();
                 let removable_values = current_roles.reduce(function(removable_values, role){
                     if(values.indexOf(role.id) > -1){ removable_values.push(role.id); }
                     return removable_values;
@@ -92,6 +92,8 @@ module.exports = function(dependencies){
             channels: function(command_args, member, channel){ return behaviors.briefChannels(); },
             kick: function(command_args, member, channel){ return behaviors.kickOldestIdleNewMember(); },
             code: function(command_args, member, channel){ return behaviors.rotateInviteCode(); },
+            members: function(command_args, member, channel){ return behaviors.updateMemberInformation(); },
+            payments: function(command_args, member, channel){ return behaviors.checkPayments(); },
             hello: function(command_args, member, channel){ return tools.greet(moment()) + ` :wave:`; },
             ajuda: function(command_args, member, channel){ return model.help_text; },
             procura: function(command_args, member, channel){ return 'https://pt.wikipedia.org/wiki/' + tools.safeURLParam(command_args.join(' ')); },
@@ -107,12 +109,22 @@ module.exports = function(dependencies){
                 const source_channel = client.guilds.cache.get(model.guild_id).channels.cache.get(channel_id);
                 source_channel.messages.fetch({around: command_args[1], limit: 1}).then(messages=>{
                     let message = messages.first();
-                    if(!message){ var reply = 'Não encontrei essa mensagem.'; }
+                    if(!message || !message.content){ var reply = 'Não encontrei essa mensagem.'; }
+                    if(message.content.length > 1700){ var reply = 'Esta mensagem tem demasiados caracteres.'; }
                     else{
                         var reply = `Mensagem originalmente colocada por ${message.author}:\n` + message.content;
                         if(message.attachments.size>0){ reply += `\n${message.attachments.first().url}`; }
                     }
                     channel.send(reply)
+                });
+                return false;//have to answer asynchronously
+            },
+            member: function(command_args, member, channel){
+                if(command_args.length < 1){ return 'Necessito do ID deste membro.'; }
+                keep.member(command_args[0], function(member){
+                    let avatar = member.user.displayAvatarURL().replace('.webp', '.png?size=128');
+                    let reply = moment(member.joinedTimestamp).format('YYYY-MM-DD HH:mm:ss') + ': ' + member.displayName + ' (' + avatar + ')';
+                    channel.send(reply);
                 });
                 return false;//have to answer asynchronously
             },
