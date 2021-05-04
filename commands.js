@@ -160,7 +160,7 @@ module.exports = function(dependencies){
     commands.items['4df'] = function(command_args, member, channel){ 
         return ` **${tools.random(3, -1) + tools.random(3, -1) + tools.random(3, -1) + tools.random(3, -1)}**`; 
     };
-    const emoji_dice = [2,4,6,8,10,12,20,100, 'f'];
+    const emoji_dice = [2,3,4,6,8,10,12,20,100, 'f'];
     const dice_pools = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
     emoji_dice.map(n=>{ 
         dice_pools.map(size=>{ 
