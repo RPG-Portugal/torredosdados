@@ -146,7 +146,7 @@ module.exports = function(dependencies){
                 return `Mmmm... vou escolher o número... **${tools.random(n)}**`;
             },
             gen: function(command_args, member, channel){
-                if(command_args.length == 0){ return 'Indica-me que dados Genesys lançar (ex: aapdd).'; }
+                if(command_args.length == 0){ return 'Indica-me que dados Genesys lançar. As letras válidas são: bsadpcf (ex: aapdd).'; }
                 return tools.genesys.roll(client, command_args[0]);
             },
             avatar: function(command_args, member, channel){
