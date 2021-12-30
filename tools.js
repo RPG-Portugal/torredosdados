@@ -28,7 +28,10 @@ function emoji(client, name){
     return `${emoji_found}`;
 };
 module.exports.emoji = emoji;
-module.exports.safeURLParam = function(text){
+module.exports.safeURLParam = function(text, use_underscores){
+    if(use_underscores){ 
+        return encodeURIComponent(text.trim().replace(/[^a-zA-Z\d\s:\u00C0-\u00FF]/gi,'').split(' ').join('_'));
+    }
     return encodeURIComponent(text.trim().replace(/[^a-zA-Z\d\s:\u00C0-\u00FF]/gi,''));
 };
 module.exports.commasAnd = function(arr){

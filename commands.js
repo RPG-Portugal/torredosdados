@@ -96,8 +96,8 @@ module.exports = function(dependencies){
             payments: function(command_args, member, channel){ return behaviors.checkPayments(); },
             hello: function(command_args, member, channel){ return tools.greet(moment()) + ` :wave:`; },
             ajuda: function(command_args, member, channel){ return model.help_text; },
-            procura: function(command_args, member, channel){ return 'https://pt.wikipedia.org/wiki/' + tools.safeURLParam(command_args.join(' ')); },
-            search: function(command_args, member, channel){ return 'https://en.wikipedia.org/wiki/' + tools.safeURLParam(command_args.join(' ')); },
+            procura: function(command_args, member, channel){ return 'https://pt.wikipedia.org/wiki/' + tools.safeURLParam(command_args.map(s=>s.length>2?s[0].toUpperCase()+s.slice(1):s).join(' '), true); },
+            search: function(command_args, member, channel){ return 'https://en.wikipedia.org/wiki/' + tools.safeURLParam(command_args.map(s=>s.length>2?s[0].toUpperCase()+s.slice(1):s).join(' '), true); },
             dicas: function(command_args, member, channel){ 
                 let url = 'https://rpgportugal.com/dicas/' + tools.safeURLParam(command_args.join('')); 
                 url += '?t=' + moment().format('YYYYMMDDHHmmss');
@@ -146,7 +146,7 @@ module.exports = function(dependencies){
                 return `Mmmm... vou escolher o número... **${tools.random(n)}**`;
             },
             gen: function(command_args, member, channel){
-                if(command_args.length == 0){ return 'Indica-me que dados Genesys lançar. As letras válidas são: bsadpcf (ex: aapdd).'; }
+                if(command_args.length == 0){ return 'Indica-me que dados Genesys lançar. As letras válidas são: bapsdcf.'; }
                 return tools.genesys.roll(client, command_args[0]);
             },
             avatar: function(command_args, member, channel){
@@ -187,7 +187,7 @@ module.exports = function(dependencies){
                 let answer = dice.reduce(function(answer, die){ return answer + `${tools.emoji(client, 'd'+n)}**${die}** `; }, ''); 
                 if( (command_args.length > 0 && total !== false) || n == 'f' ){
                     if(modifier === false){ answer+=` (${total})`; }else{ answer +=` (${command_args[0]} dá ${total})`;}
-                }else if(commands.items[command_args[0]]){
+                }else if(commands.items[command_args[0]] && size < 11){
                     answer += commands.items[command_args[0]]([]);
                     for(var i=1; i<4; i++){//and for a few additional dice
                         if(commands.items[command_args[i]]){ answer += commands.items[command_args[i]]([]); }

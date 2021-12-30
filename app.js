@@ -163,7 +163,7 @@ const behaviors = {
         });
         return relevant_channels;
     },
-    reactToAuthorExit: function(message, after_a_while){
+    reactToAuthorExit: function(message, after_a_while){//to detect drive-thru posting
         if(!message || !message.author || !message.author.presence || !message.author.presence.status){ return false; }
         if(message.content || message.attachments.size>0 || message.embeds.length>0){ return false; }//should be a welcome message
         if(!after_a_while){
@@ -439,7 +439,7 @@ client.on('message', message => {
     setTimeout(function(message){//give it time for edits, embeds, reactions, deletes...
         save.emit('message_posted', message); 
     }.bind(this, message), model.keep_delay); 
-    behaviors.reactToAuthorExit(message);
+    //behaviors.reactToAuthorExit(message);
 });
 client.on('guildMemberAdd', member => {
     if(member.guild.id != model.guild_id){ return false; }
