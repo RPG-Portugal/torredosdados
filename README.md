@@ -1,4 +1,4 @@
-![Torre dos Dados](https://rpgportugal.com/torre/img/torredosdados.jpg)
+![Torre dos Dados](https://rpgportugal.com/torres/img/torredosdados.jpg)
 
 # Torre dos Dados
 *Bota do servidor RPG Portugal no Discord. Faz parte de um projecto mais alargado de desenvolvimento de soluções para a comunidade de roleplayers Portuguesa. Mais informação [na respectiva página](https://rpgportugal.com/torre/).*
